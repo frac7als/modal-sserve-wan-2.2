@@ -1,4 +1,3 @@
-
 import subprocess
 import os
 import modal
@@ -50,7 +49,7 @@ def hf_download():
     )
 
     subprocess.run(
-        f"ln -s {wan_model} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors",
+        f"ln -sf {wan_model} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors",
         shell=True,
         check=True,
     )
@@ -62,7 +61,7 @@ def hf_download():
     )
 
     subprocess.run(
-        f"ln -s {wan_model_low_noise} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors",
+        f"ln -sf {wan_model_low_noise} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors",
         shell=True,
         check=True,
     )
@@ -74,7 +73,7 @@ def hf_download():
     )
 
     subprocess.run(
-        f"ln -s {vae_model} /root/comfy/ComfyUI/models/vae/wan_2.1_vae.safetensors",
+        f"ln -sf {vae_model} /root/comfy/ComfyUI/models/vae/wan_2.1_vae.safetensors",
         shell=True,
         check=True,
     )
@@ -86,10 +85,34 @@ def hf_download():
     )
 
     subprocess.run(
-        f"ln -s {t5_model} /root/comfy/ComfyUI/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        f"ln -sf {t5_model} /root/comfy/ComfyUI/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
         shell=True,
         check=True,
     )
+
+    # ======================================================================
+    # THIS IS THE CONFIRMED FIX FOR THE MISSING LORA
+    # ======================================================================
+    # 1. Define the lora directory and ensure it exists
+    lora_dir = "/root/comfy/ComfyUI/models/loras"
+    os.makedirs(lora_dir, exist_ok=True)
+
+    # 2. Download the lora file from the correct Hugging Face repository
+    lora_model_path = hf_hub_download(
+        repo_id="Kijai/WanVideo_comfy",
+        filename="Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+        cache_dir="/cache",
+    )
+    
+    lora_filename = "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors"
+
+    # 3. Create a symbolic link to the lora file in the correct directory
+    subprocess.run(
+        f"ln -sf {lora_model_path} {os.path.join(lora_dir, lora_filename)}",
+        shell=True,
+        check=True,
+    )
+    # ======================================================================
 
 
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
@@ -97,7 +120,6 @@ vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 image = (
     # install huggingface_hub with hf_transfer support to speed up downloads
     image.pip_install("huggingface_hub[hf_transfer]>=0.34.0,<1.0")
-    # .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}) # <-- Temporarily disable to see if it fixes the timeout
     .run_function(
         hf_download,
         # persist the HF cache to a Modal Volume so future runs don't re-download models
@@ -105,22 +127,15 @@ image = (
     )
 )
 
-## Running ComfyUI interactively
-
-# Spin up an interactive ComfyUI server by wrapping the `comfy launch` command in a Modal Function
-# and serving it as a [web server](https://modal.com/docs/guide/webhooks#non-asgi-web-servers).
-
 app = modal.App(name="example-comfyui", image=image)
 
 
 @app.function(
-    max_containers=1,  # limit interactive session to 1 container
-    gpu="L40S",  # good starter GPU for inference
-    volumes={"/cache": vol},  # mounts our cached models
+    max_containers=1,
+    gpu="L40S",
+    volumes={"/cache": vol},
 )
-@modal.concurrent(
-    max_inputs=10
-)  # required for UI startup process which runs several API calls concurrently
+@modal.concurrent(max_inputs=10)
 @modal.web_server(8000, startup_timeout=60)
 def ui():
     subprocess.Popen("comfy launch -- --listen 0.0.0.0 --port 8000", shell=True)
