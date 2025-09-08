@@ -10,24 +10,17 @@ image = (
         "ffmpeg",
         "build-essential",
         "cmake",
+        "wget",  # Add wget to download the sample video
     )
-    # Install Python dependencies for the custom nodes
+    # Consolidated list of Python dependencies
     .pip_install(
-        "gguf",  # <-- The missing dependency for ComfyUI-GGUF
+        "gguf",
         "llama-cpp-python",
         "opencv-python-headless",
         "imageio[ffmpeg]",
         "moviepy",
-        "fastapi[standard]==0.115.4", # It's better to group pip installs
+        "fastapi[standard]==0.115.4",
         "comfy-cli==1.5.1",
-    )
-    # Install Python dependencies for the custom nodes
-    .pip_install(
-        "llama-cpp-python", # For ComfyUI-GGUF
-        "opencv-python-headless", # For ComfyUI-VideoHelperSuite
-        "imageio[ffmpeg]", # Often used with video nodes
-        "moviepy", # Often used with video nodes
-        # Add any other dependencies found in the requirements.txt of the nodes
     )
     .run_commands(
         "comfy --skip-prompt install --fast-deps --nvidia --version 0.3.47"
@@ -47,40 +40,54 @@ image = image.run_commands(
     "git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation",
 )
 
+# ========================================================================
+# FIX 2: Download a sample video into the ComfyUI input directory
+# This makes a default video available for the VHS_LoadVideo node.
+# ========================================================================
+image = image.run_commands(
+    "wget -P /root/comfy/ComfyUI/input/ https://github.com/modal-labs/modal-examples/raw/main/comfyui/comfyui_input.mp4",
+)
 
 def hf_download():
     from huggingface_hub import hf_hub_download
+    import os
 
-    wan_model = hf_hub_download(
+    # ========================================================================
+    # FIX 1: Download GGUF models and place them in the correct directory
+    # ========================================================================
+    GGUF_MODEL_DIR = "/root/comfy/ComfyUI/models/gguf"
+    os.makedirs(GGUF_MODEL_DIR, exist_ok=True)
+
+    # Download the GGUF version of the high-noise model
+    wan_gguf_model = hf_hub_download(
         repo_id="Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
-        filename="split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors",
+        filename="split_files/gguf/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         cache_dir="/cache",
     )
-
     subprocess.run(
-        f"ln -s {wan_model} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors",
+        f"ln -s {wan_gguf_model} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         shell=True,
         check=True,
     )
 
-    wan_model_low_noise = hf_hub_download(
+    # Download the GGUF version of the low-noise model
+    wan_gguf_low_noise = hf_hub_download(
         repo_id="Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
-        filename="split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors",
+        filename="split_files/gguf/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         cache_dir="/cache",
     )
-
     subprocess.run(
-        f"ln -s {wan_model_low_noise} /root/comfy/ComfyUI/models/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors",
+        f"ln -s {wan_gguf_low_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         shell=True,
         check=True,
     )
 
+    # We still need the VAE and Text Encoder, which are not GGUF files
     vae_model = hf_hub_download(
         repo_id="Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
         filename="split_files/vae/wan_2.1_vae.safetensors",
         cache_dir="/cache",
     )
-
     subprocess.run(
         f"ln -s {vae_model} /root/comfy/ComfyUI/models/vae/wan_2.1_vae.safetensors",
         shell=True,
@@ -92,20 +99,17 @@ def hf_download():
         filename="split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
         cache_dir="/cache",
     )
-
     subprocess.run(
         f"ln -s {t5_model} /root/comfy/ComfyUI/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
         shell=True,
         check=True,
     )
 
-
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 
 image = (
     # install huggingface_hub with hf_transfer support to speed up downloads
     image.pip_install("huggingface_hub[hf_transfer]>=0.34.0,<1.0")
-    # .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"}) # <-- Temporarily disable to see if it fixes the timeout
     .run_function(
         hf_download,
         # persist the HF cache to a Modal Volume so future runs don't re-download models
@@ -114,12 +118,7 @@ image = (
 )
 
 ## Running ComfyUI interactively
-
-# Spin up an interactive ComfyUI server by wrapping the `comfy launch` command in a Modal Function
-# and serving it as a [web server](https://modal.com/docs/guide/webhooks#non-asgi-web-servers).
-
 app = modal.App(name="example-comfyui", image=image)
-
 
 @app.function(
     max_containers=1,  # limit interactive session to 1 container
