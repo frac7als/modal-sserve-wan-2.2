@@ -7,13 +7,18 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install(
         "git",
-        "ffmpeg",  # Needed by VideoHelperSuite
-        "build-essential", # Potentially needed by llama-cpp-python
-        "cmake", # Potentially needed by llama-cpp-python
+        "ffmpeg",
+        "build-essential",
+        "cmake",
     )
-    # Install base web and comfy dependencies
+    # Install Python dependencies for the custom nodes
     .pip_install(
-        "fastapi[standard]==0.115.4",
+        "gguf",  # <-- The missing dependency for ComfyUI-GGUF
+        "llama-cpp-python",
+        "opencv-python-headless",
+        "imageio[ffmpeg]",
+        "moviepy",
+        "fastapi[standard]==0.115.4", # It's better to group pip installs
         "comfy-cli==1.5.1",
     )
     # Install Python dependencies for the custom nodes
