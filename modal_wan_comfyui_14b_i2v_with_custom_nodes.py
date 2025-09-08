@@ -40,7 +40,7 @@ image = image.run_commands(
 )
 
 # ========================================================================
-# FIX 1: Use a reliable URL for the sample video.
+# FIX: Use a reliable URL for the sample video.
 # The -O flag tells wget to save the file with a new name.
 # ========================================================================
 image = image.run_commands(
@@ -54,18 +54,14 @@ def hf_download():
     GGUF_MODEL_DIR = "/root/comfy/ComfyUI/models/gguf"
     os.makedirs(GGUF_MODEL_DIR, exist_ok=True)
 
-    # ========================================================================
-    # FIX 2: Download the correct HIGH NOISE and LOW NOISE models
-    # ========================================================================
-
     # Download the GGUF version of the HIGH-noise model
     wan_gguf_high_noise = hf_hub_download(
         repo_id="bullerwins/Wan2.2-I2V-A14B-GGUF",
-        filename="wan2.2_i2v_high_noise_14B_Q8_0.gguf",  # <-- Corrected to high_noise
+        filename="wan2.2_i2v_high_noise_14B_Q8_0.gguf",
         cache_dir="/cache",
     )
     subprocess.run(
-        f"ln -s {wan_gguf_high_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_high_noise_14B_Q8_0.gguf", # <-- Corrected link destination
+        f"ln -s {wan_gguf_high_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_high_noise_14B_Q8_0.gguf",
         shell=True,
         check=True,
     )
