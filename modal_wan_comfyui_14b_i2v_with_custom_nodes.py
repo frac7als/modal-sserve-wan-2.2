@@ -18,10 +18,10 @@ image = image.run_commands(  # download a custom node
     "git clone https://github.com/ChenDarYen/ComfyUI-NAG.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-NAG",
     "git clone https://github.com/kijai/ComfyUI-KJNodes.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-KJNodes",
     "git clone https://github.com/cubiq/ComfyUI_essentials.git /root/comfy/ComfyUI/custom_nodes/ComfyUI_essentials",
-    "git clone https://github.com/city96/ComfyUI-GGUF /root/comfy/ComfyUI/custom_nodes/ComfyUI-GGUF",
-    "git clone https://github.com/rgthree/rgthree-comfy /root/comfy/ComfyUI/custom_nodes/rgthree-comfy",
-    "git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite /root/comfy/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite",
-    "git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation /root/comfy/ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation",
+    "git clone https://github.com/city96/ComfyUI-GGUF.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-GGUF",
+    "git clone https://github.com/rgthree/rgthree-comfy.git /root/comfy/ComfyUI/custom_nodes/rgthree-comfy",
+    "git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite",
+    "git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation",
 )
 
 
