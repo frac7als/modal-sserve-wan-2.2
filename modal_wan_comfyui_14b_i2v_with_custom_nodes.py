@@ -10,7 +10,7 @@ image = (
         "ffmpeg",
         "build-essential",
         "cmake",
-        "wget",  # Add wget to download the sample video
+        "wget",
     )
     # Consolidated list of Python dependencies
     .pip_install(
@@ -28,7 +28,6 @@ image = (
 )
 
 # ## Downloading custom nodes
-# Now, clone the nodes into the image that already has their dependencies
 image = image.run_commands(
     "comfy node install --fast-deps was-node-suite-comfyui@1.0.2",
     "git clone https://github.com/ChenDarYen/ComfyUI-NAG.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-NAG",
@@ -41,36 +40,37 @@ image = image.run_commands(
 )
 
 # ========================================================================
-# FIX 2: Download a sample video into the ComfyUI input directory
-# This makes a default video available for the VHS_LoadVideo node.
+# FIX 1: Use a reliable URL for the sample video.
+# The -O flag tells wget to save the file with a new name.
 # ========================================================================
 image = image.run_commands(
-    "wget -P /root/comfy/ComfyUI/input/ https://github.com/modal-labs/modal-examples/raw/main/comfyui/comfyui_input.mp4",
+    'wget -O /root/comfy/ComfyUI/input/sample_video.mp4 "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"',
 )
 
 def hf_download():
     from huggingface_hub import hf_hub_download
     import os
 
-    # ========================================================================
-    # FIX 1: Download GGUF models and place them in the correct directory
-    # ========================================================================
     GGUF_MODEL_DIR = "/root/comfy/ComfyUI/models/gguf"
     os.makedirs(GGUF_MODEL_DIR, exist_ok=True)
 
-    # Download the GGUF version of the high-noise model
-    wan_gguf_model = hf_hub_download(
+    # ========================================================================
+    # FIX 2: Download the correct HIGH NOISE and LOW NOISE models
+    # ========================================================================
+
+    # Download the GGUF version of the HIGH-noise model
+    wan_gguf_high_noise = hf_hub_download(
         repo_id="bullerwins/Wan2.2-I2V-A14B-GGUF",
-        filename="wan2.2_i2v_low_noise_14B_Q8_0.gguf",
+        filename="wan2.2_i2v_high_noise_14B_Q8_0.gguf",  # <-- Corrected to high_noise
         cache_dir="/cache",
     )
     subprocess.run(
-        f"ln -s {wan_gguf_model} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
+        f"ln -s {wan_gguf_high_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_high_noise_14B_Q8_0.gguf", # <-- Corrected link destination
         shell=True,
         check=True,
     )
 
-    # Download the GGUF version of the low-noise model
+    # Download the GGUF version of the LOW-noise model
     wan_gguf_low_noise = hf_hub_download(
         repo_id="bullerwins/Wan2.2-I2V-A14B-GGUF",
         filename="wan2.2_i2v_low_noise_14B_Q8_0.gguf",
@@ -108,26 +108,23 @@ def hf_download():
 vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
 
 image = (
-    # install huggingface_hub with hf_transfer support to speed up downloads
     image.pip_install("huggingface_hub[hf_transfer]>=0.34.0,<1.0")
     .run_function(
         hf_download,
-        # persist the HF cache to a Modal Volume so future runs don't re-download models
         volumes={"/cache": vol},
     )
 )
 
-## Running ComfyUI interactively
 app = modal.App(name="example-comfyui", image=image)
 
 @app.function(
-    max_containers=1,  # limit interactive session to 1 container
-    gpu="L40S",  # good starter GPU for inference
-    volumes={"/cache": vol},  # mounts our cached models
+    max_containers=1,
+    gpu="L40S",
+    volumes={"/cache": vol},
 )
 @modal.concurrent(
     max_inputs=10
-)  # required for UI startup process which runs several API calls concurrently
+)
 @modal.web_server(8000, startup_timeout=60)
 def ui():
     subprocess.Popen("comfy launch -- --listen 0.0.0.0 --port 8000", shell=True)
