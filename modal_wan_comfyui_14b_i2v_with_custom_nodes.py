@@ -60,24 +60,24 @@ def hf_download():
 
     # Download the GGUF version of the high-noise model
     wan_gguf_model = hf_hub_download(
-        repo_id="Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
-        filename="split_files/gguf/wan2.2_i2v_high_noise_14B_Q3_K_S.gguf",
+        repo_id="bullerwins/Wan2.2-I2V-A14B-GGUF",
+        filename="wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         cache_dir="/cache",
     )
     subprocess.run(
-        f"ln -s {wan_gguf_model} {GGUF_MODEL_DIR}/wan2.2_i2v_high_noise_14B_Q3_K_S.gguf",
+        f"ln -s {wan_gguf_model} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         shell=True,
         check=True,
     )
 
     # Download the GGUF version of the low-noise model
     wan_gguf_low_noise = hf_hub_download(
-        repo_id="Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
-        filename="split_files/gguf/wan2.2_i2v_low_noise_14B_Q3_K_S.gguf",
+        repo_id="bullerwins/Wan2.2-I2V-A14B-GGUF",
+        filename="wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         cache_dir="/cache",
     )
     subprocess.run(
-        f"ln -s {wan_gguf_low_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q3_K_S.gguf",
+        f"ln -s {wan_gguf_low_noise} {GGUF_MODEL_DIR}/wan2.2_i2v_low_noise_14B_Q8_0.gguf",
         shell=True,
         check=True,
     )
