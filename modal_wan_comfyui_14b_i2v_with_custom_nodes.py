@@ -2,18 +2,36 @@ import subprocess
 import os
 import modal
 
-image = (  # build up a Modal Image to run ComfyUI, step by step
-    modal.Image.debian_slim(python_version="3.11")  # start from basic Linux with Python
-    .apt_install("git")  # install git to clone ComfyUI
-    .pip_install("fastapi[standard]==0.115.4")  # install web dependencies
-    .pip_install("comfy-cli==1.4.1")  # install comfy-cli
-    .run_commands(  # use comfy-cli to install ComfyUI and its dependencies
+# It's good practice to list dependencies in a structured way
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install(
+        "git",
+        "ffmpeg",  # Needed by VideoHelperSuite
+        "build-essential", # Potentially needed by llama-cpp-python
+        "cmake", # Potentially needed by llama-cpp-python
+    )
+    # Install base web and comfy dependencies
+    .pip_install(
+        "fastapi[standard]==0.115.4",
+        "comfy-cli==1.5.1",
+    )
+    # Install Python dependencies for the custom nodes
+    .pip_install(
+        "llama-cpp-python", # For ComfyUI-GGUF
+        "opencv-python-headless", # For ComfyUI-VideoHelperSuite
+        "imageio[ffmpeg]", # Often used with video nodes
+        "moviepy", # Often used with video nodes
+        # Add any other dependencies found in the requirements.txt of the nodes
+    )
+    .run_commands(
         "comfy --skip-prompt install --fast-deps --nvidia --version 0.3.47"
     )
 )
 
 # ## Downloading custom nodes
-image = image.run_commands(  # download a custom node
+# Now, clone the nodes into the image that already has their dependencies
+image = image.run_commands(
     "comfy node install --fast-deps was-node-suite-comfyui@1.0.2",
     "git clone https://github.com/ChenDarYen/ComfyUI-NAG.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-NAG",
     "git clone https://github.com/kijai/ComfyUI-KJNodes.git /root/comfy/ComfyUI/custom_nodes/ComfyUI-KJNodes",
